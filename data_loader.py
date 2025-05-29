@@ -27,11 +27,30 @@ def load_market_names(path: str = MARKET_NAMES_TXT) -> List[str]:
 
 
 def load_distance_matrix(path: str = DISTANCES_XLSX) -> List[List[float]]:
-    """Load NxN distance matrix from an Excel file."""
+    """Load NxN distance matrix from an Excel file.
+
+    The Excel sheet is assumed to be a *labelled* square matrix, i.e. the first
+    column and the first row contain market names. These labels are removed and
+    only the numeric distance values are returned. Any non-numeric entries are
+    coerced to ``NaN`` and subsequently filled with zeros so that distance
+    calculations never fail.
+    """
     if not os.path.exists(path):
         raise FileNotFoundError(f"Distance file not found: {path}")
-    df = pd.read_excel(path, header=None)
-    return df.fillna(0).astype(float).values.tolist()
+
+    # Read the sheet using the first column as the row index (market names)
+    df = pd.read_excel(path, index_col=0)
+
+    # Convert every cell to a numeric value; market names will become NaN
+    df = df.apply(pd.to_numeric, errors="coerce")
+
+    # Remove any completely non-numeric rows/columns that may remain (safety)
+    df = df.dropna(axis=0, how="all").dropna(axis=1, how="all")
+
+    # Replace missing distances with 0 (including diagonal if absent)
+    df = df.fillna(0).astype(float)
+
+    return df.values.tolist()
 
 
 def load_product_prices(
