@@ -23,33 +23,30 @@ def load_market_names(path: str = MARKET_NAMES_TXT) -> List[str]:
     if not os.path.exists(path):
         raise FileNotFoundError(f"Market names file not found: {path}")
     with open(path, "r", encoding="utf-8") as fp:
-        return [line.strip() for line in fp if line.strip()]
+        # Read all non-empty lines, strip whitespace, and filter out any remaining empty strings
+        markets = [line.strip() for line in fp if line.strip()]
+    return markets
 
 
 def load_distance_matrix(path: str = DISTANCES_XLSX) -> List[List[float]]:
     """Load NxN distance matrix from an Excel file.
 
-    The Excel sheet is assumed to be a *labelled* square matrix, i.e. the first
-    column and the first row contain market names. These labels are removed and
-    only the numeric distance values are returned. Any non-numeric entries are
-    coerced to ``NaN`` and subsequently filled with zeros so that distance
-    calculations never fail.
+    The Excel sheet should contain only numeric distance values.
+    Any non-numeric entries are coerced to 0.
     """
     if not os.path.exists(path):
         raise FileNotFoundError(f"Distance file not found: {path}")
 
-    # Read the sheet using the first column as the row index (market names)
-    df = pd.read_excel(path, index_col=0)
-
-    # Convert every cell to a numeric value; market names will become NaN
-    df = df.apply(pd.to_numeric, errors="coerce")
-
-    # Remove any completely non-numeric rows/columns that may remain (safety)
-    df = df.dropna(axis=0, how="all").dropna(axis=1, how="all")
-
-    # Replace missing distances with 0 (including diagonal if absent)
+    # Read the Excel file without assuming any headers
+    df = pd.read_excel(path, header=None)
+    
+    # Convert all values to numeric, non-numeric become NaN
+    df = df.apply(pd.to_numeric, errors='coerce')
+    
+    # Fill NaN values with 0 and convert to float
     df = df.fillna(0).astype(float)
-
+    
+    # Convert to list of lists
     return df.values.tolist()
 
 
